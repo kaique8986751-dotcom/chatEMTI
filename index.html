@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TimeChat - Passe seu tempo aqui!</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(rgba(10, 25, 47, 0.85), rgba(10, 25, 47, 0.85)), 
+                  url('https://images.unsplash.com/photo-1508615070457-7baeba4003ab?auto=format&fit=crop&w=1350&q=80') center/cover no-repeat fixed;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 450px;
+      height: 90vh;
+      max-height: 650px;
+      background: rgba(15, 32, 67, 0.9);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #0d253f;
+      color: #e0f2fe;
+      padding: 15px;
+      text-align: center;
+      border-bottom: 2px solid #1e40af;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      color: #38bdf8;
+    }
+
+    .header p {
+      font-size: 0.85rem;
+      color: #93c5fd;
+      font-style: italic;
+      margin-top: 4px;
+    }
+
+    .user-profile-bar {
+      background: #09172a;
+      padding: 10px 15px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #1e40af;
+    }
+
+    .profile-avatar-container {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .profile-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #38bdf8;
+      background: #1e293b;
+    }
+
+    .avatar-edit-overlay {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      background: #2563eb;
+      color: white;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .user-info input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px dashed #38bdf8;
+      color: #e0f2fe;
+      font-weight: bold;
+      font-size: 0.95rem;
+      outline: none;
+      padding: 2px 0;
+    }
+
+    .user-info label {
+      font-size: 0.7rem;
+      color: #94a3b8;
+    }
+
+    .status-bar {
+      padding: 8px 15px;
+      background: #0a192f;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-indicator {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .status-indicator.online {
+      color: #4ade80;
+    }
+
+    .btn-session {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn-enter {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-enter:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-leave {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-leave:hover {
+      background: #dc2626;
+    }
+
+    .messages-area {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message-wrapper {
+      display: flex;
+      gap: 8px;
+      max-width: 85%;
+      align-items: flex-end;
+    }
+
+    .message-wrapper.sent {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message-wrapper.received {
+      align-self: flex-start;
+    }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #38bdf8;
+      flex-shrink: 0;
+    }
+
+    .message {
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      word-wrap: break-word;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sender-name {
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #38bdf8;
+      margin-bottom: 2px;
+    }
+
+    .message img.chat-image {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 4px;
+      margin-bottom: 4px;
+    }
+
+    .timestamp {
+      font-size: 0.7rem;
+      opacity: 0.75;
+      align-self: flex-end;
+      margin-top: 4px;
+    }
+
+    .message.system {
+      align-self: center;
+      background: rgba(30, 58, 138, 0.5);
+      color: #93c5fd;
+      font-size: 0.8rem;
+      border: 1px solid #1e40af;
+      text-align: center;
+      padding: 6px 12px;
+      border-radius: 12px;
+    }
+
+    .message-wrapper.sent .message {
+      background: #2563eb;
+      color: #ffffff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .message-wrapper.received .message {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-bottom-left-radius: 2px;
+      border: 1px solid #334155;
+    }
+
+    .input-area {
+      padding: 12px;
+      background: #0d253f;
+      display: flex;
+      gap: 8px;
+      border-top: 1px solid #1e40af;
+      align-items: center;
+    }
+
+    .input-area input[type="text"] {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 20px;
+      border: 1px solid #1e40af;
+      background: #0a192f;
+      color: #ffffff;
+      outline: none;
+    }
+
+    .input-area input[type="text"]:focus {
+      border-color: #38bdf8;
+    }
+
+    .btn-action {
+      padding: 10px 14px;
+      background: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-img-upload {
+      background: #1e40af;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .btn-action:disabled,
+    .btn-img-upload:disabled,
+    .input-area input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    #image-file, #profile-file {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chat-container">
+    <div class="header">
+      <h1>TimeChat</h1>
+      <p>Passe seu tempo aqui!</p>
+    </div>
+
+    <!-- Perfil do Usuário -->
+    <div class="user-profile-bar">
+      <div class="profile-avatar-container" onclick="triggerProfileUpload()">
+        <img id="profile-preview" class="profile-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=User" alt="Foto de perfil">
+        <div class="avatar-edit-overlay">✏️</div>
+      </div>
+      <input type="file" id="profile-file" accept="image/*" onchange="updateProfilePicture(event)">
+      
+      <div class="user-info">
+        <label for="username-input">Seu Nome / Apelido</label>
+        <input type="text" id="username-input" value="Você" maxlength="15">
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <span id="status" class="status-indicator">● Fora do chat</span>
+      <button id="session-btn" class="btn-session btn-enter" onclick="toggleSession()">Entrar</button>
+    </div>
+
+    <div id="messages" class="messages-area">
+      <div class="message system">Clique em "Entrar" para começar a conversar.</div>
+    </div>
+
+    <div class="input-area">
+      <label for="image-file" class="btn-img-upload" id="img-btn-label">
+        📷
+      </label>
+      <input type="file" id="image-file" accept="image/*" disabled onchange="sendImage(event)">
+
+      <input type="text" id="message-input" placeholder="Digite sua mensagem..." disabled>
+      <button id="send-btn" class="btn-action" onclick="sendMessage()" disabled>Enviar</button>
+    </div>
+  </div>
+
+  <script>
+    let inChat = false;
+    let userAvatarSrc = "https://api.dicebear.com/7.x/bottts/svg?seed=User";
+    const botAvatarSrc = "https://api.dicebear.com/7.x/bottts/svg?seed=TimeBot";
+
+    const statusEl = document.getElementById('status');
+    const sessionBtn = document.getElementById('session-btn');
+    const messagesEl = document.getElementById('messages');
+    const inputEl = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const imageInput = document.getElementById('image-file');
+    const profileInput = document.getElementById('profile-file');
+    const profilePreview = document.getElementById('profile-preview');
+    const usernameInput = document.getElementById('username-input');
+
+    function triggerProfileUpload() {
+      profileInput.click();
+    }
+
+    function updateProfilePicture(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        userAvatarSrc = e.target.result;
+        profilePreview.src = userAvatarSrc;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function getCurrentTime() {
+      const now = new Date();
+      return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function toggleSession() {
+      inChat = !inChat;
+
+      if (inChat) {
+        statusEl.textContent = '● Online na conversa';
+        statusEl.classList.add('online');
+        sessionBtn.textContent = 'Sair';
+        sessionBtn.classList.remove('btn-enter');
+        sessionBtn.classList.add('btn-leave');
+        
+        inputEl.disabled = false;
+        sendBtn.disabled = false;
+        imageInput.disabled = false;
+
+        addSystemMessage('Você entrou na conversa.');
+      } else {
+        statusEl.textContent = '● Fora do chat';
+        statusEl.classList.remove('online');
+        sessionBtn.textContent = 'Entrar';
+        sessionBtn.classList.remove('btn-leave');
+        sessionBtn.classList.add('btn-enter');
+
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+        imageInput.disabled = true;
+
+        addSystemMessage('Você saiu da conversa.');
+      }
+    }
+
+    function addSystemMessage(text) {
+      const msg = document.createElement('div');
+      msg.className = 'message system';
+      msg.textContent = text;
+      messagesEl.appendChild(msg);
+      scrollToBottom();
+    }
+
+    function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text || !inChat) return;
+
+      const username = usernameInput.value.trim() || 'Você';
+      createMessageElement(text, 'sent', username, userAvatarSrc);
+      inputEl.value = '';
+
+      // Resposta automática simulada
+      setTimeout(() => {
+        if (inChat) {
+          createMessageElement('O tempo voa quando estamos conversando!', 'received', 'TimeBot', botAvatarSrc);
+        }
+      }, 1000);
+    }
+
+    function sendImage(event) {
+      const file = event.target.files[0];
+      if (!file || !inChat) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const username = usernameInput.value.trim() || 'Você';
+        createMessageElement('', 'sent', username, userAvatarSrc, e.target.result);
+      };
+      reader.readAsDataURL(file);
+
+      event.target.value = '';
+    }
+
+    function createMessageElement(text, type, senderName, avatarSrc, chatImageSrc = null) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `message-wrapper ${type}`;
+
+      const avatar = document.createElement('img');
+      avatar.className = 'msg-avatar';
+      avatar.src = avatarSrc;
+      wrapper.appendChild(avatar);
+
+      const msg = document.createElement('div');
+      msg.className = 'message';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'sender-name';
+      nameSpan.textContent = senderName;
+      msg.appendChild(nameSpan);
+
+      if (chatImageSrc) {
+        const img = document.createElement('img');
+        img.className = 'chat-image';
+        img.src = chatImageSrc;
+        msg.appendChild(img);
+      }
+
+      if (text) {
+        const textSpan = document.createElement('span');
+        textSpan.textContent = text;
+        msg.appendChild(textSpan);
+      }
+
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'timestamp';
+      timeSpan.textContent = getCurrentTime();
+      msg.appendChild(timeSpan);
+
+      wrapper.appendChild(msg);
+      messagesEl.appendChild(wrapper);
+      scrollToBottom();
+    }
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    inputEl.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        sendMessage();
+      }
+    });
+  </script>
+
+</body>
+</html>
