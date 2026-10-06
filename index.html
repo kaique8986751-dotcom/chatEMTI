@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -731,6 +732,7 @@
 <script>
   // =========================================================
   // TimeChat — P2P via PeerJS
+  // ID persistente + reconexão automática
   // =========================================================
 
   let peer = null;
@@ -738,12 +740,22 @@
   let inChat = false;
   let myPeerId = null;
   let connecting = false;
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  let intentionalDisconnect = false;
+
   let remoteUser = {
     name: "Usuário",
     avatar: ""
   };
 
+  const STORAGE_KEYS = {
+    peerId: "timechat_peer_id",
+    remoteId: "timechat_remote_id"
+  };
+
   let userAvatarSrc =
+    localStorage.getItem("timechat_avatar") ||
     "https://api.dicebear.com/7.x/bottts/svg?seed=" +
     Math.random().toString(36).substring(2, 10);
 
@@ -763,6 +775,33 @@
 
   profilePreview.src = userAvatarSrc;
 
+  const savedRemoteId = localStorage.getItem(STORAGE_KEYS.remoteId);
+  if (savedRemoteId) {
+    remoteIdInput.value = savedRemoteId;
+  }
+
+  // ---------------------------------------------------------
+  // ID permanente
+  // ---------------------------------------------------------
+
+  function generatePersistentPeerId() {
+    const existing = localStorage.getItem(STORAGE_KEYS.peerId);
+
+    if (existing) {
+      return existing;
+    }
+
+    const randomPart = Math.random().toString(36).substring(2, 10);
+    const timestampPart = Date.now().toString(36).slice(-4);
+
+    const newId = "timechat-" + randomPart + timestampPart;
+
+    localStorage.setItem(STORAGE_KEYS.peerId, newId);
+    return newId;
+  }
+
+  const persistentPeerId = generatePersistentPeerId();
+
   // ---------------------------------------------------------
   // Perfil
   // ---------------------------------------------------------
@@ -781,15 +820,22 @@
     }
 
     const reader = new FileReader();
+
     reader.onload = (e) => {
       userAvatarSrc = e.target.result;
       profilePreview.src = userAvatarSrc;
 
-      // Se já estiver conectado, atualiza o outro usuário.
+      try {
+        localStorage.setItem("timechat_avatar", userAvatarSrc);
+      } catch (error) {
+        console.warn("Não foi possível salvar o avatar localmente.", error);
+      }
+
       if (conn && conn.open) {
         sendUserInfo(conn);
       }
     };
+
     reader.readAsDataURL(file);
   });
 
@@ -835,12 +881,27 @@
     statusEl.classList.toggle("online", online);
   }
 
+  function saveRemoteId(id) {
+    if (id) {
+      localStorage.setItem(STORAGE_KEYS.remoteId, id);
+    }
+  }
+
   // ---------------------------------------------------------
   // PeerJS / sinalização
   // ---------------------------------------------------------
 
   function startPeer() {
-    if (peer) return;
+    if (peer && !peer.destroyed) {
+      if (peer.disconnected) {
+        try {
+          peer.reconnect();
+        } catch (e) {
+          console.error("Falha ao recuperar PeerJS:", e);
+        }
+      }
+      return;
+    }
 
     if (typeof Peer === "undefined") {
       connecting = false;
@@ -852,14 +913,14 @@
     }
 
     connecting = true;
+    intentionalDisconnect = false;
     setStatus("● Conectando...");
 
     /*
-      A comunicação do chat é P2P.
-      O servidor PeerJS é usado apenas para sinalização:
-      ele ajuda os navegadores a se encontrarem.
+      O ID é criado uma única vez e salvo no localStorage.
+      Assim, o mesmo navegador volta a usar o mesmo ID.
     */
-    peer = new Peer(undefined, {
+    peer = new Peer(persistentPeerId, {
       debug: 1,
       config: {
         iceServers: [
@@ -873,6 +934,7 @@
       myPeerId = id;
       inChat = true;
       connecting = false;
+      reconnectAttempts = 0;
 
       setStatus("● Online", true);
 
@@ -884,9 +946,19 @@
       myIdEl.textContent = id;
 
       addSystemMessage("Você está online.");
-      addSystemMessage(
-        "Copie seu código e envie para outra pessoa. Depois, cole o código dela aqui."
-      );
+      addSystemMessage("Seu ID permanente é: " + id);
+
+      const lastRemoteId = localStorage.getItem(STORAGE_KEYS.remoteId);
+
+      if (lastRemoteId && lastRemoteId !== id) {
+        remoteIdInput.value = lastRemoteId;
+
+        addSystemMessage(
+          "Tentando recuperar a última conexão..."
+        );
+
+        scheduleReconnect(true);
+      }
     });
 
     // Recebe uma conexão iniciada por outro usuário.
@@ -897,30 +969,32 @@
       }
 
       conn = incoming;
+      saveRemoteId(incoming.peer);
       setupConnection(conn);
     });
 
     peer.on("disconnected", () => {
-      if (!peer || peer.destroyed) return;
+      if (!peer || peer.destroyed || intentionalDisconnect) return;
 
-      setStatus("● Sinalização desconectada");
+      setStatus("● Reconectando servidor...", false);
 
-      // Tenta recuperar a conexão de sinalização.
-      setTimeout(() => {
-        if (peer && peer.disconnected) {
-          try {
-            peer.reconnect();
-          } catch (e) {
-            console.error("Falha ao reconectar PeerJS:", e);
-          }
-        }
-      }, 1500);
+      schedulePeerServerReconnect();
     });
 
     peer.on("close", () => {
+      if (intentionalDisconnect) {
+        peer = null;
+        myPeerId = null;
+        inChat = false;
+        return;
+      }
+
       peer = null;
       myPeerId = null;
       inChat = false;
+
+      setStatus("● Servidor desconectado");
+      schedulePeerRestart();
     });
 
     peer.on("error", (error) => {
@@ -933,32 +1007,105 @@
         case "peer-unavailable":
           message = "Usuário não encontrado ou offline.";
           break;
+
         case "network":
-          message = "Problema de rede.";
+          message = "Problema de rede. Tentando novamente...";
           break;
+
         case "server-error":
           message = "Servidor de sinalização indisponível.";
           break;
+
         case "socket-error":
         case "socket-closed":
-          message = "A conexão de sinalização foi interrompida.";
+          message = "A conexão de sinalização foi interrompida. Tentando novamente...";
           break;
+
         case "unavailable-id":
-          message = "O código gerado já está em uso. Tente novamente.";
+          /*
+            O ID permanente já está sendo usado em outra aba/dispositivo.
+            Não trocamos automaticamente o ID, pois isso quebraria a
+            permanência. O usuário precisa fechar a sessão duplicada.
+          */
+          message =
+            "Este ID permanente já está em uso. Feche a outra sessão deste usuário e tente novamente.";
           break;
+
         case "invalid-key":
           message = "Configuração do PeerJS inválida.";
           break;
+
         default:
-          message = "Erro: " + (error.message || error.type || "desconhecido");
+          message =
+            "Erro: " + (error.message || error.type || "desconhecido");
       }
 
       addSystemMessage(message);
 
+      if (
+        error.type === "network" ||
+        error.type === "socket-error" ||
+        error.type === "socket-closed" ||
+        error.type === "server-error"
+      ) {
+        schedulePeerRestart();
+      }
+
       if (error.type === "peer-unavailable") {
         connectBtn.disabled = false;
+
+        // Tenta novamente depois, caso o outro usuário volte online.
+        scheduleReconnect();
       }
     });
+  }
+
+  function schedulePeerServerReconnect() {
+    if (intentionalDisconnect || !peer || peer.destroyed) return;
+
+    clearTimeout(reconnectTimer);
+
+    reconnectTimer = setTimeout(() => {
+      if (!peer || peer.destroyed || intentionalDisconnect) return;
+
+      try {
+        if (peer.disconnected) {
+          peer.reconnect();
+        }
+      } catch (error) {
+        console.error("Falha ao reconectar ao servidor:", error);
+        schedulePeerRestart();
+      }
+    }, 2000);
+  }
+
+  function schedulePeerRestart() {
+    if (intentionalDisconnect) return;
+
+    clearTimeout(reconnectTimer);
+
+    reconnectAttempts++;
+
+    const delay = Math.min(
+      15000,
+      2000 * Math.max(1, reconnectAttempts)
+    );
+
+    reconnectTimer = setTimeout(() => {
+      if (intentionalDisconnect) return;
+
+      if (peer) {
+        try {
+          peer.destroy();
+        } catch (e) {}
+      }
+
+      peer = null;
+      myPeerId = null;
+      inChat = false;
+
+      startPeer();
+    }, delay);
   }
 
   // ---------------------------------------------------------
@@ -968,6 +1115,10 @@
   function toggleSession() {
     if (!inChat) {
       if (connecting) return;
+
+      intentionalDisconnect = false;
+      reconnectAttempts = 0;
+
       startPeer();
       return;
     }
@@ -976,6 +1127,11 @@
   }
 
   function disconnectEverything(showMessage = true) {
+    intentionalDisconnect = true;
+
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+
     if (conn) {
       try {
         conn.close();
@@ -983,7 +1139,10 @@
     }
 
     conn = null;
-    remoteUser = { name: "Usuário", avatar: "" };
+    remoteUser = {
+      name: "Usuário",
+      avatar: ""
+    };
 
     if (peer) {
       try {
@@ -1005,7 +1164,6 @@
     connectPanel.style.display = "none";
     disableInput();
 
-    remoteIdInput.value = "";
     myIdEl.textContent = "";
 
     if (showMessage) {
@@ -1014,19 +1172,76 @@
   }
 
   // ---------------------------------------------------------
+  // Reconexão P2P
+  // ---------------------------------------------------------
+
+  function scheduleReconnect(immediate = false) {
+    const remoteId = localStorage.getItem(STORAGE_KEYS.remoteId);
+
+    if (!remoteId || remoteId === myPeerId || intentionalDisconnect) {
+      return;
+    }
+
+    clearTimeout(reconnectTimer);
+
+    const delay = immediate
+      ? 1500
+      : Math.min(15000, 3000 + reconnectAttempts * 2000);
+
+    reconnectTimer = setTimeout(() => {
+      reconnectToSavedPeer();
+    }, delay);
+  }
+
+  function reconnectToSavedPeer() {
+    const remoteId = localStorage.getItem(STORAGE_KEYS.remoteId);
+
+    if (
+      !remoteId ||
+      remoteId === myPeerId ||
+      intentionalDisconnect
+    ) {
+      return;
+    }
+
+    if (!peer || peer.destroyed || peer.disconnected) {
+      scheduleReconnect();
+      return;
+    }
+
+    if (conn && conn.open) {
+      return;
+    }
+
+    remoteIdInput.value = remoteId;
+
+    addSystemMessage(
+      "Tentando reconectar com " + remoteId + "..."
+    );
+
+    connectToPeer(true);
+  }
+
+  // ---------------------------------------------------------
   // Conectar a outro usuário
   // ---------------------------------------------------------
 
-  function connectToPeer() {
+  function connectToPeer(autoReconnect = false) {
     const remoteId = remoteIdInput.value.trim();
 
     if (!remoteId) {
-      addSystemMessage("Digite o código do outro usuário.");
+      if (!autoReconnect) {
+        addSystemMessage("Digite o código do outro usuário.");
+      }
       return;
     }
 
     if (!peer || !inChat) {
-      addSystemMessage("Primeiro clique em \"Conectar Servidor\".");
+      if (!autoReconnect) {
+        addSystemMessage(
+          'Primeiro clique em "Conectar Servidor".'
+        );
+      }
       return;
     }
 
@@ -1036,12 +1251,19 @@
     }
 
     if (conn && conn.open) {
-      addSystemMessage("Você já está conectado.");
+      if (!autoReconnect) {
+        addSystemMessage("Você já está conectado.");
+      }
       return;
     }
 
+    saveRemoteId(remoteId);
+
     connectBtn.disabled = true;
-    addSystemMessage("Conectando ao usuário...");
+
+    if (!autoReconnect) {
+      addSystemMessage("Conectando ao usuário...");
+    }
 
     try {
       const newConn = peer.connect(remoteId, {
@@ -1053,9 +1275,15 @@
       setupConnection(conn);
     } catch (error) {
       console.error(error);
+
       connectBtn.disabled = false;
       conn = null;
-      addSystemMessage("Não foi possível iniciar a conexão.");
+
+      if (!autoReconnect) {
+        addSystemMessage("Não foi possível iniciar a conexão.");
+      }
+
+      scheduleReconnect();
     }
   }
 
@@ -1068,11 +1296,19 @@
 
     connection.on("open", () => {
       connectBtn.disabled = false;
+      reconnectAttempts = 0;
 
-      setStatus("● Conversando com " + connection.peer, true);
+      saveRemoteId(connection.peer);
+
+      setStatus(
+        "● Conectado com " + connection.peer,
+        true
+      );
+
       enableInput();
 
       addSystemMessage("Conexão P2P estabelecida!");
+
       sendUserInfo(connection);
     });
 
@@ -1085,7 +1321,11 @@
           avatar: data.avatarSrc || ""
         };
 
-        setStatus("● Conversando com " + remoteUser.name, true);
+        setStatus(
+          "● Conversando com " + remoteUser.name,
+          true
+        );
+
         return;
       }
 
@@ -1098,6 +1338,7 @@
           null,
           data.timestamp
         );
+
         return;
       }
 
@@ -1119,10 +1360,21 @@
       if (conn === connection) {
         conn = null;
         disableInput();
-        remoteUser = { name: "Usuário", avatar: "" };
+        remoteUser = {
+          name: "Usuário",
+          avatar: ""
+        };
 
         setStatus("● Online", true);
-        addSystemMessage("O outro usuário saiu da conversa.");
+
+        addSystemMessage(
+          "A conexão foi encerrada. Tentando reconectar..."
+        );
+
+        if (!intentionalDisconnect) {
+          reconnectAttempts++;
+          scheduleReconnect();
+        }
       }
     });
 
@@ -1135,7 +1387,14 @@
         disableInput();
       }
 
-      addSystemMessage("Erro na conexão com o usuário.");
+      addSystemMessage(
+        "Erro na conexão com o usuário. Tentando novamente..."
+      );
+
+      if (!intentionalDisconnect) {
+        reconnectAttempts++;
+        scheduleReconnect();
+      }
     });
   }
 
@@ -1162,7 +1421,9 @@
     if (!text) return;
 
     if (!conn || !conn.open) {
-      addSystemMessage("Você não está conectado a outro usuário.");
+      addSystemMessage(
+        "Você não está conectado a outro usuário."
+      );
       return;
     }
 
@@ -1190,7 +1451,9 @@
       inputEl.focus();
     } catch (error) {
       console.error(error);
-      addSystemMessage("Não foi possível enviar a mensagem.");
+      addSystemMessage(
+        "Não foi possível enviar a mensagem."
+      );
     }
   }
 
@@ -1275,7 +1538,9 @@
       );
     } catch (error) {
       console.error(error);
-      addSystemMessage("Não foi possível enviar a imagem.");
+      addSystemMessage(
+        "Não foi possível enviar a imagem."
+      );
     }
   }
 
@@ -1297,7 +1562,8 @@
     const avatar = document.createElement("img");
     avatar.className = "msg-avatar";
     avatar.src = avatarSrc || userAvatarSrc;
-    avatar.alt = "Avatar de " + (senderName || "Usuário");
+    avatar.alt =
+      "Avatar de " + (senderName || "Usuário");
 
     wrapper.appendChild(avatar);
 
@@ -1326,11 +1592,13 @@
 
     const timeSpan = document.createElement("span");
     timeSpan.className = "timestamp";
-    timeSpan.textContent = timeStr || getCurrentTime();
+    timeSpan.textContent =
+      timeStr || getCurrentTime();
     msg.appendChild(timeSpan);
 
     wrapper.appendChild(msg);
     messagesEl.appendChild(wrapper);
+
     scrollToBottom();
   }
 
@@ -1339,7 +1607,7 @@
   // ---------------------------------------------------------
 
   sessionBtn.addEventListener("click", toggleSession);
-  connectBtn.addEventListener("click", connectToPeer);
+  connectBtn.addEventListener("click", () => connectToPeer(false));
   sendBtn.addEventListener("click", sendMessage);
   imageInput.addEventListener("change", sendImage);
 
@@ -1356,19 +1624,74 @@
     }
   });
 
-  remoteIdInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      connectToPeer();
+  remoteIdInput.addEventListener("input", () => {
+    const id = remoteIdInput.value.trim();
+
+    if (id) {
+      saveRemoteId(id);
     }
   });
 
+  remoteIdInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      connectToPeer(false);
+    }
+  });
+
+  // ---------------------------------------------------------
+  // Recuperação automática quando a aba volta a ter rede
+  // ---------------------------------------------------------
+
+  window.addEventListener("online", () => {
+    if (intentionalDisconnect) return;
+
+    addSystemMessage("Internet recuperada. Reconectando...");
+
+    if (!peer || peer.destroyed) {
+      startPeer();
+    } else if (peer.disconnected) {
+      try {
+        peer.reconnect();
+      } catch (e) {
+        schedulePeerRestart();
+      }
+    }
+
+    scheduleReconnect(true);
+  });
+
+  window.addEventListener("offline", () => {
+    if (!intentionalDisconnect) {
+      setStatus("● Sem internet");
+      addSystemMessage(
+        "Sem internet. A conexão será recuperada automaticamente."
+      );
+    }
+  });
+
+  // ---------------------------------------------------------
+  // Não destruir a sessão ao apenas recarregar a página.
+  // O ID continua no localStorage.
+  // ---------------------------------------------------------
+
   window.addEventListener("beforeunload", () => {
+    /*
+      Não removemos:
+        - timechat_peer_id
+        - timechat_remote_id
+        - timechat_avatar
+
+      Assim o usuário mantém seu ID após atualizar ou fechar e abrir
+      novamente o navegador.
+    */
+
     try {
       if (conn) conn.close();
       if (peer) peer.destroy();
     } catch (e) {}
   });
+
 </script>
 
 </body>
