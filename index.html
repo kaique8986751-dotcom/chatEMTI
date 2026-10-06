@@ -3,14 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TimeChat P2P - Passe seu tempo aqui!</title>
+  <title>TimeChat - Passe seu tempo aqui!</title>
   
-  <!-- Biblioteca P2P (Sem servidor central) -->
-  <script type="module">
-    import { joinRoom } from 'https://cdn.jsdelivr.net/npm/trystero@0.18.0/torrent.min.js';
-    window.joinRoomP2P = joinRoom;
-  </script>
-
   <style>
     * {
       box-sizing: border-box;
@@ -318,14 +312,14 @@
 
   <div class="chat-container">
     <div class="header">
-      <h1>TimeChat P2P</h1>
+      <h1>TimeChat</h1>
       <p>Passe seu tempo aqui!</p>
     </div>
 
     <!-- Perfil do Usuário -->
     <div class="user-profile-bar">
       <div class="profile-avatar-container" onclick="triggerProfileUpload()">
-        <img id="profile-preview" class="profile-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=User" alt="Foto de perfil">
+        <img id="profile-preview" class="profile-avatar" src="" alt="Foto de perfil">
         <div class="avatar-edit-overlay">✏️</div>
       </div>
       <input type="file" id="profile-file" accept="image/*" onchange="updateProfilePicture(event)">
@@ -342,7 +336,7 @@
     </div>
 
     <div id="messages" class="messages-area">
-      <div class="message system">Clique em "Entrar" para conectar via P2P.</div>
+      <div class="message system">Clique em "Entrar" para se conectar.</div>
     </div>
 
     <div class="input-area">
@@ -357,9 +351,8 @@
   </div>
 
   <script>
+    let socket = null;
     let inChat = false;
-    let room = null;
-    let sendP2PMessage = null;
     let userId = 'user_' + Math.random().toString(36).substr(2, 9);
     let userAvatarSrc = "https://api.dicebear.com/7.x/bottts/svg?seed=" + userId;
 
@@ -400,20 +393,49 @@
       inChat = !inChat;
 
       if (inChat) {
-        statusEl.textContent = '● Conectando via P2P...';
-        statusEl.classList.add('online');
+        statusEl.textContent = '● Conectando...';
         sessionBtn.textContent = 'Sair';
         sessionBtn.classList.remove('btn-enter');
         sessionBtn.classList.add('btn-leave');
-        
-        inputEl.disabled = false;
-        sendBtn.disabled = false;
-        imageInput.disabled = false;
 
-        addSystemMessage('Procurando outros pares conectados...');
+        // Canal público WebSocket no PieSocket (gratuito)
+        socket = new WebSocket('wss://free.piesocket.com/v3/sala_geral_timechat?api_key=VC323vS23nn32v&notify_self=1');
 
-        // Inicializa a sala P2P usando Trystero
-        initP2PRoom();
+        socket.onopen = function() {
+          statusEl.textContent = '● Online na conversa';
+          statusEl.classList.add('online');
+          inputEl.disabled = false;
+          sendBtn.disabled = false;
+          imageInput.disabled = false;
+          addSystemMessage('Você entrou no chat.');
+        };
+
+        socket.onmessage = function(event) {
+          try {
+            const data = JSON.parse(event.data);
+            const type = (data.senderId === userId) ? 'sent' : 'received';
+
+            createMessageElement(
+              data.text,
+              type,
+              data.senderName,
+              data.avatarSrc,
+              data.chatImageSrc,
+              data.timestamp
+            );
+          } catch(e) {
+            console.error('Erro ao ler mensagem', e);
+          }
+        };
+
+        socket.onerror = function() {
+          addSystemMessage('Erro ao conectar ao servidor WebSocket.');
+        };
+
+        socket.onclose = function() {
+          if(inChat) toggleSession();
+        };
+
       } else {
         statusEl.textContent = '● Fora do chat';
         statusEl.classList.remove('online');
@@ -425,52 +447,13 @@
         sendBtn.disabled = true;
         imageInput.disabled = true;
 
-        if (room) {
-          room.leave();
-          room = null;
+        if (socket) {
+          socket.close();
+          socket = null;
         }
 
-        addSystemMessage('Você se desconectou.');
+        addSystemMessage('Você saiu da conversa.');
       }
-    }
-
-    function initP2PRoom() {
-      if (!window.joinRoomP2P) {
-        setTimeout(initP2PRoom, 300);
-        return;
-      }
-
-      // Nome da sala pública descentralizada
-      const config = { appId: 'timechat_app_p2p_room' };
-      room = window.joinRoomP2P(config, 'sala_geral');
-
-      // Cria a ação de envio/recebimento de dados na rede P2P
-      const [sendData, getData] = room.makeAction('chat');
-      sendP2PMessage = sendData;
-
-      // Evento quando um novo usuário se conecta diretamente com você
-      room.onPeerJoin(peerId => {
-        addSystemMessage('Um novo usuário se conectou!');
-        statusEl.textContent = '● Online na sala P2P';
-      });
-
-      // Evento quando alguém sai da sala
-      room.onPeerLeave(peerId => {
-        addSystemMessage('Um usuário se desconectou.');
-      });
-
-      // Recebe a mensagem enviada de outro navegador
-      getData((data, peerId) => {
-        if (!inChat) return;
-        createMessageElement(
-          data.text, 
-          'received', 
-          data.senderName, 
-          data.avatarSrc, 
-          data.chatImageSrc, 
-          data.timestamp
-        );
-      });
     }
 
     function addSystemMessage(text) {
@@ -483,52 +466,41 @@
 
     function sendMessage() {
       const text = inputEl.value.trim();
-      if (!text || !inChat) return;
+      if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
 
       const username = usernameInput.value.trim() || 'Usuário';
-      const timestamp = getCurrentTime();
 
       const payload = {
+        senderId: userId,
         senderName: username,
         avatarSrc: userAvatarSrc,
         text: text,
         chatImageSrc: null,
-        timestamp: timestamp
+        timestamp: getCurrentTime()
       };
 
-      // Mostra localmente
-      createMessageElement(text, 'sent', username, userAvatarSrc, null, timestamp);
-
-      // Envia diretamente para todos os outros navegadores conectados
-      if (sendP2PMessage) {
-        sendP2PMessage(payload);
-      }
-
+      socket.send(JSON.stringify(payload));
       inputEl.value = '';
     }
 
     function sendImage(event) {
       const file = event.target.files[0];
-      if (!file || !inChat) return;
+      if (!file || !socket || socket.readyState !== WebSocket.OPEN) return;
 
       const reader = new FileReader();
       reader.onload = function(e) {
         const username = usernameInput.value.trim() || 'Usuário';
-        const timestamp = getCurrentTime();
 
         const payload = {
+          senderId: userId,
           senderName: username,
           avatarSrc: userAvatarSrc,
           text: '',
           chatImageSrc: e.target.result,
-          timestamp: timestamp
+          timestamp: getCurrentTime()
         };
 
-        createMessageElement('', 'sent', username, userAvatarSrc, e.target.result, timestamp);
-
-        if (sendP2PMessage) {
-          sendP2PMessage(payload);
-        }
+        socket.send(JSON.stringify(payload));
       };
       reader.readAsDataURL(file);
 
