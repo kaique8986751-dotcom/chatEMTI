@@ -3,11 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TimeChat - Passe seu tempo aqui!</title>
+  <title>TimeChat P2P - Passe seu tempo aqui!</title>
   
-  <!-- Firebase App & Realtime Database SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <!-- Biblioteca P2P (Sem servidor central) -->
+  <script type="module">
+    import { joinRoom } from 'https://cdn.jsdelivr.net/npm/trystero@0.18.0/torrent.min.js';
+    window.joinRoomP2P = joinRoom;
+  </script>
 
   <style>
     * {
@@ -316,7 +318,7 @@
 
   <div class="chat-container">
     <div class="header">
-      <h1>TimeChat</h1>
+      <h1>TimeChat P2P</h1>
       <p>Passe seu tempo aqui!</p>
     </div>
 
@@ -340,7 +342,7 @@
     </div>
 
     <div id="messages" class="messages-area">
-      <div class="message system">Clique em "Entrar" para começar a conversar.</div>
+      <div class="message system">Clique em "Entrar" para conectar via P2P.</div>
     </div>
 
     <div class="input-area">
@@ -355,25 +357,10 @@
   </div>
 
   <script>
-    // Configuração do Firebase Realtime Database
-    // Substitua os dados abaixo com as credenciais do seu projeto Firebase
-    const firebaseConfig = {
-      apiKey: "SUA_API_KEY",
-      authDomain: "SEU_PROJETO.firebaseapp.com",
-      databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
-      projectId: "SEU_PROJETO",
-      storageBucket: "SEU_PROJETO.appspot.com",
-      messagingSenderId: "1234567890",
-      appId: "1:1234567890:web:abcdef123456"
-    };
-
-    // Inicializa o Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const messagesRef = database.ref('chat_messages');
-
     let inChat = false;
-    let userId = 'user_' + Math.random().toString(36).substr(2, 9); // Identificador único por sessão
+    let room = null;
+    let sendP2PMessage = null;
+    let userId = 'user_' + Math.random().toString(36).substr(2, 9);
     let userAvatarSrc = "https://api.dicebear.com/7.x/bottts/svg?seed=" + userId;
 
     const statusEl = document.getElementById('status');
@@ -413,7 +400,7 @@
       inChat = !inChat;
 
       if (inChat) {
-        statusEl.textContent = '● Online na conversa';
+        statusEl.textContent = '● Conectando via P2P...';
         statusEl.classList.add('online');
         sessionBtn.textContent = 'Sair';
         sessionBtn.classList.remove('btn-enter');
@@ -423,10 +410,10 @@
         sendBtn.disabled = false;
         imageInput.disabled = false;
 
-        addSystemMessage('Você entrou na conversa.');
-        
-        // Ativa a escuta de mensagens do Firebase em tempo real
-        listenForMessages();
+        addSystemMessage('Procurando outros pares conectados...');
+
+        // Inicializa a sala P2P usando Trystero
+        initP2PRoom();
       } else {
         statusEl.textContent = '● Fora do chat';
         statusEl.classList.remove('online');
@@ -438,11 +425,52 @@
         sendBtn.disabled = true;
         imageInput.disabled = true;
 
-        addSystemMessage('Você saiu da conversa.');
-        
-        // Para de escutar novas mensagens ao sair
-        messagesRef.off();
+        if (room) {
+          room.leave();
+          room = null;
+        }
+
+        addSystemMessage('Você se desconectou.');
       }
+    }
+
+    function initP2PRoom() {
+      if (!window.joinRoomP2P) {
+        setTimeout(initP2PRoom, 300);
+        return;
+      }
+
+      // Nome da sala pública descentralizada
+      const config = { appId: 'timechat_app_p2p_room' };
+      room = window.joinRoomP2P(config, 'sala_geral');
+
+      // Cria a ação de envio/recebimento de dados na rede P2P
+      const [sendData, getData] = room.makeAction('chat');
+      sendP2PMessage = sendData;
+
+      // Evento quando um novo usuário se conecta diretamente com você
+      room.onPeerJoin(peerId => {
+        addSystemMessage('Um novo usuário se conectou!');
+        statusEl.textContent = '● Online na sala P2P';
+      });
+
+      // Evento quando alguém sai da sala
+      room.onPeerLeave(peerId => {
+        addSystemMessage('Um usuário se desconectou.');
+      });
+
+      // Recebe a mensagem enviada de outro navegador
+      getData((data, peerId) => {
+        if (!inChat) return;
+        createMessageElement(
+          data.text, 
+          'received', 
+          data.senderName, 
+          data.avatarSrc, 
+          data.chatImageSrc, 
+          data.timestamp
+        );
+      });
     }
 
     function addSystemMessage(text) {
@@ -453,26 +481,32 @@
       scrollToBottom();
     }
 
-    // Salva a mensagem no banco de dados em tempo real do Firebase
     function sendMessage() {
       const text = inputEl.value.trim();
       if (!text || !inChat) return;
 
       const username = usernameInput.value.trim() || 'Usuário';
+      const timestamp = getCurrentTime();
 
-      messagesRef.push({
-        senderId: userId,
+      const payload = {
         senderName: username,
         avatarSrc: userAvatarSrc,
         text: text,
         chatImageSrc: null,
-        timestamp: getCurrentTime()
-      });
+        timestamp: timestamp
+      };
+
+      // Mostra localmente
+      createMessageElement(text, 'sent', username, userAvatarSrc, null, timestamp);
+
+      // Envia diretamente para todos os outros navegadores conectados
+      if (sendP2PMessage) {
+        sendP2PMessage(payload);
+      }
 
       inputEl.value = '';
     }
 
-    // Salva uma imagem enviada no banco de dados
     function sendImage(event) {
       const file = event.target.files[0];
       if (!file || !inChat) return;
@@ -480,39 +514,25 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         const username = usernameInput.value.trim() || 'Usuário';
-        messagesRef.push({
-          senderId: userId,
+        const timestamp = getCurrentTime();
+
+        const payload = {
           senderName: username,
           avatarSrc: userAvatarSrc,
           text: '',
           chatImageSrc: e.target.result,
-          timestamp: getCurrentTime()
-        });
+          timestamp: timestamp
+        };
+
+        createMessageElement('', 'sent', username, userAvatarSrc, e.target.result, timestamp);
+
+        if (sendP2PMessage) {
+          sendP2PMessage(payload);
+        }
       };
       reader.readAsDataURL(file);
 
       event.target.value = '';
-    }
-
-    // Escuta novas mensagens adicionadas por QUALQUER usuário no Firebase
-    function listenForMessages() {
-      messagesRef.off(); // Remove ouvintes anteriores para não duplicar
-      
-      messagesRef.limitToLast(50).on('child_added', (snapshot) => {
-        if (!inChat) return;
-        
-        const data = snapshot.val();
-        const type = (data.senderId === userId) ? 'sent' : 'received';
-
-        createMessageElement(
-          data.text, 
-          type, 
-          data.senderName, 
-          data.avatarSrc, 
-          data.chatImageSrc,
-          data.timestamp
-        );
-      });
     }
 
     function createMessageElement(text, type, senderName, avatarSrc, chatImageSrc = null, timeStr = null) {
