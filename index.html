@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>TimeChat - Passe seu tempo aqui!</title>
-  
-  <!-- PeerJS Library para conexão WebRTC/WebSocket estável -->
+
+  <!-- PeerJS -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
   <style>
@@ -17,8 +18,14 @@
     }
 
     body {
-      background: linear-gradient(rgba(10, 25, 47, 0.85), rgba(10, 25, 47, 0.85)), 
-                  url('https://images.unsplash.com/photo-1508615070457-7baeba4003ab?auto=format&fit=crop&w=1350&q=80') center/cover no-repeat fixed;
+      background:
+        linear-gradient(
+          rgba(10, 25, 47, 0.85),
+          rgba(10, 25, 47, 0.85)
+        ),
+        url('https://images.unsplash.com/photo-1508615070457-7baeba4003ab?auto=format&fit=crop&w=1350&q=80')
+        center/cover no-repeat fixed;
+
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -30,22 +37,35 @@
       width: 100%;
       max-width: 450px;
       height: 90vh;
-      max-height: 650px;
-      background: rgba(15, 32, 67, 0.9);
+      max-height: 700px;
+
+      background: rgba(15, 32, 67, 0.94);
+
       border-radius: 16px;
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.37);
+
       backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+
+      border: 1px solid rgba(255,255,255,0.1);
+
       display: flex;
       flex-direction: column;
+
       overflow: hidden;
     }
+
+    /* HEADER */
 
     .header {
       background: #0d253f;
       color: #e0f2fe;
+
       padding: 15px;
+
       text-align: center;
+
       border-bottom: 2px solid #1e40af;
     }
 
@@ -61,12 +81,18 @@
       margin-top: 4px;
     }
 
+    /* PERFIL */
+
     .user-profile-bar {
       background: #09172a;
+
       padding: 10px 15px;
+
       display: flex;
       align-items: center;
+
       gap: 12px;
+
       border-bottom: 1px solid #1e40af;
     }
 
@@ -78,23 +104,35 @@
     .profile-avatar {
       width: 42px;
       height: 42px;
+
       border-radius: 50%;
+
       object-fit: cover;
+
       border: 2px solid #38bdf8;
+
       background: #1e293b;
     }
 
     .avatar-edit-overlay {
       position: absolute;
+
       bottom: 0;
       right: 0;
+
       background: #2563eb;
+
       color: white;
+
       border-radius: 50%;
+
       width: 16px;
       height: 16px;
+
       font-size: 10px;
+
       display: flex;
+
       align-items: center;
       justify-content: center;
     }
@@ -102,17 +140,25 @@
     .user-info {
       display: flex;
       flex-direction: column;
+
       flex: 1;
     }
 
     .user-info input {
       background: transparent;
+
       border: none;
+
       border-bottom: 1px dashed #38bdf8;
+
       color: #e0f2fe;
+
       font-weight: bold;
+
       font-size: 0.95rem;
+
       outline: none;
+
       padding: 2px 0;
     }
 
@@ -121,18 +167,29 @@
       color: #94a3b8;
     }
 
+    /* STATUS */
+
     .status-bar {
       padding: 8px 15px;
+
       background: #0a192f;
+
       display: flex;
+
       justify-content: space-between;
+
       align-items: center;
+
       gap: 10px;
     }
 
     .status-indicator {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: #94a3b8;
+
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .status-indicator.online {
@@ -141,10 +198,15 @@
 
     .btn-session {
       padding: 6px 12px;
+
       border: none;
+
       border-radius: 6px;
+
       font-weight: bold;
+
       cursor: pointer;
+
       transition: background 0.3s;
     }
 
@@ -166,55 +228,119 @@
       background: #dc2626;
     }
 
+    /* CONEXÃO */
+
     .connection-panel {
       padding: 10px 15px;
+
       background: #061121;
-      display: flex;
+
+      display: none;
+
       gap: 8px;
+
       align-items: center;
+
       border-bottom: 1px solid #1e40af;
+
+      flex-direction: column;
+    }
+
+    .my-id {
+      width: 100%;
+
+      background: #0a192f;
+
+      border: 1px solid #1e40af;
+
+      border-radius: 6px;
+
+      padding: 8px;
+
+      color: #38bdf8;
+
+      font-size: 0.75rem;
+
+      word-break: break-all;
+    }
+
+    .connection-row {
+      width: 100%;
+
+      display: flex;
+
+      gap: 8px;
     }
 
     .connection-panel input {
       flex: 1;
-      padding: 6px 10px;
+
+      padding: 8px 10px;
+
       border-radius: 6px;
+
       border: 1px solid #1e40af;
+
       background: #0a192f;
+
       color: #fff;
+
       font-size: 0.85rem;
+
       outline: none;
     }
 
     .btn-connect {
-      padding: 6px 12px;
+      padding: 8px 12px;
+
       background: #0284c7;
+
       color: white;
+
       border: none;
+
       border-radius: 6px;
+
       font-size: 0.85rem;
+
       font-weight: bold;
+
       cursor: pointer;
     }
 
+    .btn-connect:hover {
+      background: #0369a1;
+    }
+
+    /* MENSAGENS */
+
     .messages-area {
       flex: 1;
+
       padding: 15px;
+
       overflow-y: auto;
+
       display: flex;
+
       flex-direction: column;
+
       gap: 12px;
     }
 
     .message-wrapper {
       display: flex;
+
       gap: 8px;
+
       max-width: 85%;
+
       align-items: flex-end;
     }
 
     .message-wrapper.sent {
       align-self: flex-end;
+
       flex-direction: row-reverse;
     }
 
@@ -225,84 +351,137 @@
     .msg-avatar {
       width: 32px;
       height: 32px;
+
       border-radius: 50%;
+
       object-fit: cover;
+
       border: 1px solid #38bdf8;
+
       flex-shrink: 0;
     }
 
     .message {
       padding: 10px 14px;
+
       border-radius: 12px;
+
       font-size: 0.95rem;
+
       line-height: 1.4;
+
       word-wrap: break-word;
+
       display: flex;
+
       flex-direction: column;
+
+      min-width: 70px;
     }
 
     .sender-name {
       font-size: 0.75rem;
+
       font-weight: bold;
+
       color: #38bdf8;
+
       margin-bottom: 2px;
     }
 
     .message img.chat-image {
       max-width: 100%;
+
+      max-height: 300px;
+
+      object-fit: contain;
+
       border-radius: 8px;
+
       margin-top: 4px;
       margin-bottom: 4px;
     }
 
     .timestamp {
       font-size: 0.7rem;
+
       opacity: 0.75;
+
       align-self: flex-end;
+
       margin-top: 4px;
     }
 
     .message.system {
       align-self: center;
+
       background: rgba(30, 58, 138, 0.5);
+
       color: #93c5fd;
+
       font-size: 0.8rem;
+
       border: 1px solid #1e40af;
+
       text-align: center;
+
       padding: 6px 12px;
+
       border-radius: 12px;
+
+      max-width: 90%;
     }
 
     .message-wrapper.sent .message {
       background: #2563eb;
+
       color: #ffffff;
+
       border-bottom-right-radius: 2px;
     }
 
     .message-wrapper.received .message {
       background: #1e293b;
+
       color: #e2e8f0;
+
       border-bottom-left-radius: 2px;
+
       border: 1px solid #334155;
     }
 
+    /* INPUT */
+
     .input-area {
       padding: 12px;
+
       background: #0d253f;
+
       display: flex;
+
       gap: 8px;
+
       border-top: 1px solid #1e40af;
+
       align-items: center;
     }
 
     .input-area input[type="text"] {
       flex: 1;
+
       padding: 10px 14px;
+
       border-radius: 20px;
+
       border: 1px solid #1e40af;
+
       background: #0a192f;
+
       color: #ffffff;
+
       outline: none;
+
+      min-width: 0;
     }
 
     .input-area input[type="text"]:focus {
@@ -311,318 +490,1595 @@
 
     .btn-action {
       padding: 10px 14px;
+
       background: #0284c7;
+
       color: white;
+
       border: none;
+
       border-radius: 20px;
+
       font-weight: bold;
+
       cursor: pointer;
+    }
+
+    .btn-action:hover {
+      background: #0369a1;
     }
 
     .btn-img-upload {
       background: #1e40af;
+
       border-radius: 50%;
+
       display: flex;
+
       align-items: center;
+
       justify-content: center;
+
       width: 40px;
       height: 40px;
+
       cursor: pointer;
+
       flex-shrink: 0;
     }
 
     .btn-action:disabled,
-    .btn-img-upload:disabled,
+    .btn-img-upload.disabled,
     .input-area input:disabled,
     .btn-connect:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
 
-    #image-file, #profile-file {
+    #image-file,
+    #profile-file {
       display: none;
+    }
+
+    /* MOBILE */
+
+    @media (max-width: 500px) {
+
+      body {
+        padding: 0;
+      }
+
+      .chat-container {
+        height: 100vh;
+        max-height: none;
+
+        border-radius: 0;
+      }
+
+      .message-wrapper {
+        max-width: 90%;
+      }
+
+      .btn-action {
+        padding: 10px 12px;
+      }
     }
   </style>
 </head>
+
 <body>
 
-  <div class="chat-container">
-    <div class="header">
-      <h1>TimeChat</h1>
-      <p>Passe seu tempo aqui!</p>
-    </div>
+<div class="chat-container">
 
-    <div class="user-profile-bar">
-      <div class="profile-avatar-container" onclick="triggerProfileUpload()">
-        <img id="profile-preview" class="profile-avatar" src="" alt="Foto de perfil">
-        <div class="avatar-edit-overlay">✏️</div>
-      </div>
-      <input type="file" id="profile-file" accept="image/*" onchange="updateProfilePicture(event)">
-      
-      <div class="user-info">
-        <label for="username-input">Seu Nome / Apelido</label>
-        <input type="text" id="username-input" value="Usuário" maxlength="15">
-      </div>
-    </div>
+  <!-- HEADER -->
 
-    <div class="status-bar">
-      <span id="status" class="status-indicator">● Fora do chat</span>
-      <button id="session-btn" class="btn-session btn-enter" onclick="toggleSession()">Conectar Servidor</button>
-    </div>
-
-    <div class="connection-panel" id="connect-panel" style="display: none;">
-      <input type="text" id="remote-id-input" placeholder="Cole o código do amigo aqui...">
-      <button class="btn-connect" onclick="connectToPeer()">Conectar</button>
-    </div>
-
-    <div id="messages" class="messages-area">
-      <div class="message system">Clique em "Conectar Servidor" para iniciar.</div>
-    </div>
-
-    <div class="input-area">
-      <label for="image-file" class="btn-img-upload" id="img-btn-label">📷</label>
-      <input type="file" id="image-file" accept="image/*" disabled onchange="sendImage(event)">
-
-      <input type="text" id="message-input" placeholder="Digite sua mensagem..." disabled>
-      <button id="send-btn" class="btn-action" onclick="sendMessage()" disabled>Enviar</button>
-    </div>
+  <div class="header">
+    <h1>TimeChat</h1>
+    <p>Passe seu tempo aqui!</p>
   </div>
 
-  <script>
-    let peer = null;
-    let conn = null;
-    let inChat = false;
-    let myPeerId = null;
-    let userAvatarSrc = "https://api.dicebear.com/7.x/bottts/svg?seed=" + Math.random().toString(36).substr(2, 5);
+  <!-- PERFIL -->
 
-    const statusEl = document.getElementById('status');
-    const sessionBtn = document.getElementById('session-btn');
-    const messagesEl = document.getElementById('messages');
-    const inputEl = document.getElementById('message-input');
-    const sendBtn = document.getElementById('send-btn');
-    const imageInput = document.getElementById('image-file');
-    const profileInput = document.getElementById('profile-file');
-    const profilePreview = document.getElementById('profile-preview');
-    const usernameInput = document.getElementById('username-input');
-    const connectPanel = document.getElementById('connect-panel');
-    const remoteIdInput = document.getElementById('remote-id-input');
+  <div class="user-profile-bar">
 
-    profilePreview.src = userAvatarSrc;
+    <div
+      class="profile-avatar-container"
+      onclick="triggerProfileUpload()"
+    >
+      <img
+        id="profile-preview"
+        class="profile-avatar"
+        src=""
+        alt="Foto de perfil"
+      >
 
-    function triggerProfileUpload() {
-      profileInput.click();
+      <div class="avatar-edit-overlay">
+        ✏️
+      </div>
+    </div>
+
+    <input
+      type="file"
+      id="profile-file"
+      accept="image/*"
+    >
+
+    <div class="user-info">
+
+      <label for="username-input">
+        Seu Nome / Apelido
+      </label>
+
+      <input
+        type="text"
+        id="username-input"
+        value="Usuário"
+        maxlength="15"
+        autocomplete="off"
+      >
+
+    </div>
+
+  </div>
+
+  <!-- STATUS -->
+
+  <div class="status-bar">
+
+    <span
+      id="status"
+      class="status-indicator"
+    >
+      ● Fora do chat
+    </span>
+
+    <button
+      id="session-btn"
+      class="btn-session btn-enter"
+    >
+      Conectar Servidor
+    </button>
+
+  </div>
+
+  <!-- CONEXÃO -->
+
+  <div
+    class="connection-panel"
+    id="connect-panel"
+  >
+
+    <div class="my-id">
+      <strong>Seu código:</strong>
+      <span id="my-id"></span>
+    </div>
+
+    <div class="connection-row">
+
+      <input
+        type="text"
+        id="remote-id-input"
+        placeholder="Cole o código do amigo..."
+        autocomplete="off"
+      >
+
+      <button
+        class="btn-connect"
+        id="connect-btn"
+      >
+        Conectar
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- MENSAGENS -->
+
+  <div
+    id="messages"
+    class="messages-area"
+  >
+
+    <div class="message system">
+      Clique em "Conectar Servidor" para iniciar.
+    </div>
+
+  </div>
+
+  <!-- INPUT -->
+
+  <div class="input-area">
+
+    <label
+      for="image-file"
+      class="btn-img-upload"
+      id="img-btn-label"
+      title="Enviar imagem"
+    >
+      📷
+    </label>
+
+    <input
+      type="file"
+      id="image-file"
+      accept="image/*"
+      disabled
+    >
+
+    <input
+      type="text"
+      id="message-input"
+      placeholder="Digite sua mensagem..."
+      disabled
+      autocomplete="off"
+    >
+
+    <button
+      id="send-btn"
+      class="btn-action"
+      disabled
+    >
+      Enviar
+    </button>
+
+  </div>
+
+</div>
+
+
+<script>
+
+  /*
+   * =========================================================
+   * ESTADO DA APLICAÇÃO
+   * =========================================================
+   */
+
+  let peer = null;
+  let conn = null;
+
+  let inChat = false;
+  let myPeerId = null;
+
+  let connecting = false;
+
+  /*
+   * Avatar inicial
+   */
+
+  let userAvatarSrc =
+    "https://api.dicebear.com/7.x/bottts/svg?seed=" +
+    Math.random().toString(36).substring(2, 8);
+
+
+  /*
+   * =========================================================
+   * ELEMENTOS
+   * =========================================================
+   */
+
+  const statusEl =
+    document.getElementById("status");
+
+  const sessionBtn =
+    document.getElementById("session-btn");
+
+  const messagesEl =
+    document.getElementById("messages");
+
+  const inputEl =
+    document.getElementById("message-input");
+
+  const sendBtn =
+    document.getElementById("send-btn");
+
+  const imageInput =
+    document.getElementById("image-file");
+
+  const profileInput =
+    document.getElementById("profile-file");
+
+  const profilePreview =
+    document.getElementById("profile-preview");
+
+  const usernameInput =
+    document.getElementById("username-input");
+
+  const connectPanel =
+    document.getElementById("connect-panel");
+
+  const remoteIdInput =
+    document.getElementById("remote-id-input");
+
+  const connectBtn =
+    document.getElementById("connect-btn");
+
+  const myIdEl =
+    document.getElementById("my-id");
+
+
+  /*
+   * Avatar
+   */
+
+  profilePreview.src = userAvatarSrc;
+
+
+  /*
+   * =========================================================
+   * PERFIL
+   * =========================================================
+   */
+
+  function triggerProfileUpload() {
+
+    profileInput.click();
+
+  }
+
+
+  profileInput.addEventListener("change", function(event) {
+
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+
+      addSystemMessage(
+        "Selecione uma imagem válida."
+      );
+
+      return;
     }
 
-    function updateProfilePicture(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+    const reader = new FileReader();
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        userAvatarSrc = e.target.result;
-        profilePreview.src = userAvatarSrc;
-      };
-      reader.readAsDataURL(file);
-    }
+    reader.onload = function(e) {
 
-    function getCurrentTime() {
-      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
+      userAvatarSrc = e.target.result;
 
-    function toggleSession() {
-      if (!inChat) {
-        statusEl.textContent = '● Conectando...';
-        
-        // Conecta à rede pública e estável do PeerJS
-        peer = new Peer();
+      profilePreview.src =
+        userAvatarSrc;
 
-        peer.on('open', function(id) {
-          inChat = true;
-          myPeerId = id;
-          statusEl.textContent = '● Seu ID: ' + id;
-          statusEl.classList.add('online');
-          sessionBtn.textContent = 'Desconectar';
-          sessionBtn.classList.remove('btn-enter');
-          sessionBtn.classList.add('btn-leave');
-          connectPanel.style.display = 'flex';
-          
-          addSystemMessage('Seu código de conexão: ' + id);
-          addSystemMessage('Envie esse código para seu amigo ou cole o dele acima para conversarem.');
-        });
+    };
 
-        // Recebe conexão de outro usuário
-        peer.on('connection', function(connection) {
-          conn = connection;
-          setupConnection();
-        });
+    reader.readAsDataURL(file);
 
-        peer.on('error', function(err) {
-          addSystemMessage('Erro de conexão: ' + err.type);
-        });
+  });
 
-      } else {
-        if (conn) conn.close();
-        if (peer) peer.destroy();
-        
-        inChat = false;
-        conn = null;
-        peer = null;
 
-        statusEl.textContent = '● Fora do chat';
-        statusEl.classList.remove('online');
-        sessionBtn.textContent = 'Conectar Servidor';
-        sessionBtn.classList.remove('btn-leave');
-        sessionBtn.classList.add('btn-enter');
-        connectPanel.style.display = 'none';
+  /*
+   * =========================================================
+   * UTILITÁRIOS
+   * =========================================================
+   */
 
-        disableInput();
-        addSystemMessage('Você se desconectou.');
+  function getCurrentTime() {
+
+    return new Date().toLocaleTimeString(
+      "pt-BR",
+      {
+        hour: "2-digit",
+        minute: "2-digit"
       }
+    );
+
+  }
+
+
+  function getUsername() {
+
+    return (
+      usernameInput.value.trim() ||
+      "Usuário"
+    );
+
+  }
+
+
+  function scrollToBottom() {
+
+    messagesEl.scrollTop =
+      messagesEl.scrollHeight;
+
+  }
+
+
+  /*
+   * =========================================================
+   * MENSAGEM DO SISTEMA
+   * =========================================================
+   */
+
+  function addSystemMessage(text) {
+
+    const msg =
+      document.createElement("div");
+
+    msg.className =
+      "message system";
+
+    msg.textContent = text;
+
+    messagesEl.appendChild(msg);
+
+    scrollToBottom();
+
+  }
+
+
+  /*
+   * =========================================================
+   * CONTROLE DE INPUT
+   * =========================================================
+   */
+
+  function enableInput() {
+
+    inputEl.disabled = false;
+
+    sendBtn.disabled = false;
+
+    imageInput.disabled = false;
+
+    document
+      .getElementById("img-btn-label")
+      .classList.remove("disabled");
+
+  }
+
+
+  function disableInput() {
+
+    inputEl.disabled = true;
+
+    sendBtn.disabled = true;
+
+    imageInput.disabled = true;
+
+    document
+      .getElementById("img-btn-label")
+      .classList.add("disabled");
+
+  }
+
+
+  /*
+   * =========================================================
+   * INICIAR PEERJS
+   * =========================================================
+   */
+
+  function startPeer() {
+
+    if (peer) return;
+
+    statusEl.textContent =
+      "● Conectando ao servidor...";
+
+    statusEl.classList.remove("online");
+
+    /*
+     * PeerJS usa um servidor de sinalização
+     * para descobrir os usuários.
+     *
+     * A comunicação das mensagens ocorre
+     * diretamente entre os navegadores.
+     */
+
+    peer = new Peer(undefined, {
+
+      debug: 1
+
+    });
+
+
+    /*
+     * ID recebido
+     */
+
+    peer.on("open", function(id) {
+
+      myPeerId = id;
+
+      inChat = true;
+
+      connecting = false;
+
+      statusEl.textContent =
+        "● Online";
+
+      statusEl.classList.add("online");
+
+      sessionBtn.textContent =
+        "Desconectar";
+
+      sessionBtn.classList.remove(
+        "btn-enter"
+      );
+
+      sessionBtn.classList.add(
+        "btn-leave"
+      );
+
+      connectPanel.style.display =
+        "flex";
+
+      myIdEl.textContent = id;
+
+      addSystemMessage(
+        "Você está online."
+      );
+
+      addSystemMessage(
+        "Envie seu código para outra pessoa ou cole o código dela."
+      );
+
+    });
+
+
+    /*
+     * Outra pessoa conectou neste usuário
+     */
+
+    peer.on("connection", function(newConn) {
+
+      /*
+       * Se já existe uma conversa,
+       * recusamos a segunda.
+       */
+
+      if (conn && conn.open) {
+
+        newConn.close();
+
+        addSystemMessage(
+          "Você já está conectado a outro usuário."
+        );
+
+        return;
+      }
+
+      conn = newConn;
+
+      setupConnection(conn);
+
+    });
+
+
+    /*
+     * Erro
+     */
+
+    peer.on("error", function(error) {
+
+      console.error(
+        "PeerJS:",
+        error
+      );
+
+      connecting = false;
+
+      let message =
+        "Erro de conexão.";
+
+      switch (error.type) {
+
+        case "peer-unavailable":
+          message =
+            "Usuário não encontrado ou offline.";
+          break;
+
+        case "network":
+          message =
+            "Problema de rede.";
+          break;
+
+        case "server-error":
+          message =
+            "Servidor de sinalização indisponível.";
+          break;
+
+        case "disconnected":
+          message =
+            "Você perdeu a conexão com o servidor.";
+          break;
+
+        default:
+          message =
+            "Erro: " +
+            (error.message || error.type);
+
+      }
+
+      addSystemMessage(message);
+
+      statusEl.textContent =
+        "● Erro de conexão";
+
+    });
+
+
+    /*
+     * Peer foi desconectado
+     */
+
+    peer.on("disconnected", function() {
+
+      statusEl.textContent =
+        "● Servidor desconectado";
+
+      statusEl.classList.remove(
+        "online"
+      );
+
+    });
+
+
+    /*
+     * Peer foi destruído
+     */
+
+    peer.on("close", function() {
+
+      peer = null;
+
+      myPeerId = null;
+
+    });
+
+  }
+
+
+  /*
+   * =========================================================
+   * CONECTAR / DESCONECTAR
+   * =========================================================
+   */
+
+  function toggleSession() {
+
+    if (!inChat) {
+
+      if (connecting) return;
+
+      connecting = true;
+
+      startPeer();
+
+      return;
     }
 
-    function connectToPeer() {
-      const remoteId = remoteIdInput.value.trim();
-      if (!remoteId || !peer) return;
 
-      addSystemMessage('Conectando ao usuário...');
-      conn = peer.connect(remoteId);
-      setupConnection();
+    disconnectEverything();
+
+  }
+
+
+  /*
+   * =========================================================
+   * DESCONECTAR
+   * =========================================================
+   */
+
+  function disconnectEverything() {
+
+    if (conn) {
+
+      try {
+        conn.close();
+      } catch (e) {}
+
     }
 
-    function setupConnection() {
-      conn.on('open', function() {
-        statusEl.textContent = '● Conectado com ' + conn.peer;
-        enableInput();
-        addSystemMessage('Conexão estabelecida! Podem conversar.');
-      });
+    conn = null;
 
-      conn.on('data', function(data) {
+
+    if (peer) {
+
+      try {
+        peer.destroy();
+      } catch (e) {}
+
+    }
+
+    peer = null;
+
+    myPeerId = null;
+
+    inChat = false;
+
+    connecting = false;
+
+
+    statusEl.textContent =
+      "● Fora do chat";
+
+    statusEl.classList.remove(
+      "online"
+    );
+
+
+    sessionBtn.textContent =
+      "Conectar Servidor";
+
+    sessionBtn.classList.remove(
+      "btn-leave"
+    );
+
+    sessionBtn.classList.add(
+      "btn-enter"
+    );
+
+
+    connectPanel.style.display =
+      "none";
+
+
+    disableInput();
+
+    remoteIdInput.value = "";
+
+    myIdEl.textContent = "";
+
+
+    addSystemMessage(
+      "Você saiu do chat."
+    );
+
+  }
+
+
+  /*
+   * =========================================================
+   * CONECTAR A OUTRO USUÁRIO
+   * =========================================================
+   */
+
+  function connectToPeer() {
+
+    const remoteId =
+      remoteIdInput.value.trim();
+
+
+    if (!remoteId) {
+
+      addSystemMessage(
+        "Digite o código do outro usuário."
+      );
+
+      return;
+    }
+
+
+    if (!peer || !inChat) {
+
+      addSystemMessage(
+        "Primeiro conecte ao servidor."
+      );
+
+      return;
+    }
+
+
+    if (remoteId === myPeerId) {
+
+      addSystemMessage(
+        "Você não pode conectar consigo mesmo."
+      );
+
+      return;
+    }
+
+
+    if (conn && conn.open) {
+
+      addSystemMessage(
+        "Você já está conectado."
+      );
+
+      return;
+    }
+
+
+    addSystemMessage(
+      "Conectando ao usuário..."
+    );
+
+
+    connectBtn.disabled = true;
+
+
+    try {
+
+      const newConn =
+        peer.connect(
+          remoteId,
+          {
+            reliable: true
+          }
+        );
+
+
+      conn = newConn;
+
+      setupConnection(conn);
+
+    } catch (error) {
+
+      console.error(error);
+
+      addSystemMessage(
+        "Não foi possível iniciar a conexão."
+      );
+
+      connectBtn.disabled = false;
+
+    }
+
+  }
+
+
+  /*
+   * =========================================================
+   * CONFIGURAR CONEXÃO
+   * =========================================================
+   */
+
+  function setupConnection(connection) {
+
+    if (!connection) return;
+
+
+    connection.on("open", function() {
+
+      connectBtn.disabled = false;
+
+      statusEl.textContent =
+        "● Conversando com " +
+        connection.peer;
+
+      statusEl.classList.add(
+        "online"
+      );
+
+      enableInput();
+
+      addSystemMessage(
+        "Conexão estabelecida! Vocês podem conversar."
+      );
+
+
+      /*
+       * Envia informações do usuário
+       * para o outro lado.
+       */
+
+      sendUserInfo(connection);
+
+    });
+
+
+    /*
+     * RECEBER DADOS
+     */
+
+    connection.on("data", function(data) {
+
+      if (!data) return;
+
+
+      /*
+       * Dados do usuário
+       */
+
+      if (data.type === "user-info") {
+
+        return;
+      }
+
+
+      /*
+       * Mensagem normal
+       */
+
+      if (data.type === "message") {
+
         createMessageElement(
-          data.text,
-          'received',
-          data.senderName,
-          data.avatarSrc,
+          data.text || "",
+          "received",
+          data.senderName || "Usuário",
+          data.avatarSrc || userAvatarSrc,
+          null,
+          data.timestamp
+        );
+
+        return;
+      }
+
+
+      /*
+       * Imagem
+       */
+
+      if (data.type === "image") {
+
+        createMessageElement(
+          "",
+          "received",
+          data.senderName || "Usuário",
+          data.avatarSrc || userAvatarSrc,
           data.chatImageSrc,
           data.timestamp
         );
-      });
 
-      conn.on('close', function() {
-        addSystemMessage('O outro usuário se desconectou.');
+      }
+
+    });
+
+
+    /*
+     * FECHOU
+     */
+
+    connection.on("close", function() {
+
+      connectBtn.disabled = false;
+
+      if (conn === connection) {
+
+        conn = null;
+
         disableInput();
+
+        statusEl.textContent =
+          "● Online";
+
+        statusEl.classList.add(
+          "online"
+        );
+
+        addSystemMessage(
+          "O outro usuário saiu da conversa."
+        );
+
+      }
+
+    });
+
+
+    /*
+     * ERRO
+     */
+
+    connection.on("error", function(error) {
+
+      console.error(
+        "DataConnection:",
+        error
+      );
+
+      connectBtn.disabled = false;
+
+      addSystemMessage(
+        "Erro na conexão com o usuário."
+      );
+
+    });
+
+  }
+
+
+  /*
+   * =========================================================
+   * ENVIAR INFORMAÇÕES DO USUÁRIO
+   * =========================================================
+   */
+
+  function sendUserInfo(connection) {
+
+    if (!connection || !connection.open)
+      return;
+
+
+    try {
+
+      connection.send({
+
+        type: "user-info",
+
+        senderName: getUsername(),
+
+        avatarSrc: userAvatarSrc
+
       });
+
+    } catch (error) {
+
+      console.error(error);
+
     }
 
-    function enableInput() {
-      inputEl.disabled = false;
-      sendBtn.disabled = false;
-      imageInput.disabled = false;
+  }
+
+
+  /*
+   * =========================================================
+   * ENVIAR MENSAGEM
+   * =========================================================
+   */
+
+  function sendMessage() {
+
+    const text =
+      inputEl.value.trim();
+
+
+    if (!text)
+      return;
+
+
+    if (!conn || !conn.open) {
+
+      addSystemMessage(
+        "Você não está conectado a outro usuário."
+      );
+
+      return;
     }
 
-    function disableInput() {
-      inputEl.disabled = true;
-      sendBtn.disabled = true;
-      imageInput.disabled = true;
-    }
 
-    function addSystemMessage(text) {
-      const msg = document.createElement('div');
-      msg.className = 'message system';
-      msg.textContent = text;
-      messagesEl.appendChild(msg);
-      scrollToBottom();
-    }
+    const payload = {
 
-    function sendMessage() {
-      const text = inputEl.value.trim();
-      if (!text || !conn) return;
+      type: "message",
 
-      const username = usernameInput.value.trim() || 'Usuário';
+      senderName:
+        getUsername(),
 
-      const payload = {
-        senderName: username,
-        avatarSrc: userAvatarSrc,
-        text: text,
-        chatImageSrc: null,
-        timestamp: getCurrentTime()
-      };
+      avatarSrc:
+        userAvatarSrc,
+
+      text:
+        text,
+
+      timestamp:
+        getCurrentTime()
+
+    };
+
+
+    try {
 
       conn.send(payload);
-      createMessageElement(text, 'sent', username, userAvatarSrc, null, payload.timestamp);
-      inputEl.value = '';
+
+
+      /*
+       * Mostra imediatamente para
+       * quem enviou.
+       */
+
+      createMessageElement(
+
+        text,
+
+        "sent",
+
+        payload.senderName,
+
+        payload.avatarSrc,
+
+        null,
+
+        payload.timestamp
+
+      );
+
+
+      inputEl.value = "";
+
+      inputEl.focus();
+
+    } catch (error) {
+
+      console.error(error);
+
+      addSystemMessage(
+        "Não foi possível enviar a mensagem."
+      );
+
     }
 
-    function sendImage(event) {
-      const file = event.target.files[0];
-      if (!file || !conn) return;
+  }
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const username = usernameInput.value.trim() || 'Usuário';
 
-        const payload = {
-          senderName: username,
-          avatarSrc: userAvatarSrc,
-          text: '',
-          chatImageSrc: e.target.result,
-          timestamp: getCurrentTime()
+  /*
+   * =========================================================
+   * REDUZIR IMAGEM ANTES DE ENVIAR
+   * =========================================================
+   *
+   * Isso é importante.
+   *
+   * Enviar uma foto original de 5MB
+   * diretamente pelo DataChannel pode
+   * causar problemas.
+   */
+
+  function resizeImage(file, maxWidth = 1000) {
+
+    return new Promise(function(resolve, reject) {
+
+      const reader =
+        new FileReader();
+
+
+      reader.onload = function(event) {
+
+        const img =
+          new Image();
+
+
+        img.onload = function() {
+
+          let width =
+            img.width;
+
+          let height =
+            img.height;
+
+
+          if (width > maxWidth) {
+
+            const ratio =
+              maxWidth / width;
+
+            width =
+              maxWidth;
+
+            height =
+              height * ratio;
+
+          }
+
+
+          const canvas =
+            document.createElement(
+              "canvas"
+            );
+
+
+          canvas.width =
+            width;
+
+          canvas.height =
+            height;
+
+
+          const ctx =
+            canvas.getContext(
+              "2d"
+            );
+
+
+          ctx.drawImage(
+            img,
+            0,
+            0,
+            width,
+            height
+          );
+
+
+          /*
+           * JPEG comprimido
+           */
+
+          resolve(
+            canvas.toDataURL(
+              "image/jpeg",
+              0.75
+            )
+          );
+
         };
 
-        conn.send(payload);
-        createMessageElement('', 'sent', username, userAvatarSrc, e.target.result, payload.timestamp);
+
+        img.onerror =
+          reject;
+
+
+        img.src =
+          event.target.result;
+
       };
+
+
+      reader.onerror =
+        reject;
+
+
       reader.readAsDataURL(file);
-      event.target.value = '';
-    }
 
-    function createMessageElement(text, type, senderName, avatarSrc, chatImageSrc = null, timeStr = null) {
-      const wrapper = document.createElement('div');
-      wrapper.className = `message-wrapper ${type}`;
-
-      const avatar = document.createElement('img');
-      avatar.className = 'msg-avatar';
-      avatar.src = avatarSrc;
-      wrapper.appendChild(avatar);
-
-      const msg = document.createElement('div');
-      msg.className = 'message';
-
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'sender-name';
-      nameSpan.textContent = senderName;
-      msg.appendChild(nameSpan);
-
-      if (chatImageSrc) {
-        const img = document.createElement('img');
-        img.className = 'chat-image';
-        img.src = chatImageSrc;
-        msg.appendChild(img);
-      }
-
-      if (text) {
-        const textSpan = document.createElement('span');
-        textSpan.textContent = text;
-        msg.appendChild(textSpan);
-      }
-
-      const timeSpan = document.createElement('span');
-      timeSpan.className = 'timestamp';
-      timeSpan.textContent = timeStr || getCurrentTime();
-      msg.appendChild(timeSpan);
-
-      wrapper.appendChild(msg);
-      messagesEl.appendChild(wrapper);
-      scrollToBottom();
-    }
-
-    function scrollToBottom() {
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
-    inputEl.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') sendMessage();
     });
-  </script>
+
+  }
+
+
+  /*
+   * =========================================================
+   * ENVIAR IMAGEM
+   * =========================================================
+   */
+
+  async function sendImage(event) {
+
+    const file =
+      event.target.files[0];
+
+
+    /*
+     * Limpa o input
+     */
+
+    event.target.value = "";
+
+
+    if (!file)
+      return;
+
+
+    if (!file.type.startsWith("image/")) {
+
+      addSystemMessage(
+        "Selecione uma imagem válida."
+      );
+
+      return;
+    }
+
+
+    if (!conn || !conn.open) {
+
+      addSystemMessage(
+        "Você não está conectado."
+      );
+
+      return;
+    }
+
+
+    try {
+
+      addSystemMessage(
+        "Preparando imagem..."
+      );
+
+
+      const imageSrc =
+        await resizeImage(file);
+
+
+      const payload = {
+
+        type: "image",
+
+        senderName:
+          getUsername(),
+
+        avatarSrc:
+          userAvatarSrc,
+
+        chatImageSrc:
+          imageSrc,
+
+        timestamp:
+          getCurrentTime()
+
+      };
+
+
+      conn.send(payload);
+
+
+      createMessageElement(
+
+        "",
+
+        "sent",
+
+        payload.senderName,
+
+        payload.avatarSrc,
+
+        imageSrc,
+
+        payload.timestamp
+
+      );
+
+    } catch (error) {
+
+      console.error(error);
+
+      addSystemMessage(
+        "Não foi possível enviar a imagem."
+      );
+
+    }
+
+  }
+
+
+  /*
+   * =========================================================
+   * CRIAR MENSAGEM NA TELA
+   * =========================================================
+   */
+
+  function createMessageElement(
+
+    text,
+    type,
+    senderName,
+    avatarSrc,
+    chatImageSrc = null,
+    timeStr = null
+
+  ) {
+
+    const wrapper =
+      document.createElement(
+        "div"
+      );
+
+
+    wrapper.className =
+      "message-wrapper " +
+      type;
+
+
+    /*
+     * Avatar
+     */
+
+    const avatar =
+      document.createElement(
+        "img"
+      );
+
+
+    avatar.className =
+      "msg-avatar";
+
+
+    avatar.src =
+      avatarSrc ||
+      userAvatarSrc;
+
+
+    avatar.alt =
+      "Avatar de " +
+      senderName;
+
+
+    wrapper.appendChild(
+      avatar
+    );
+
+
+    /*
+     * Caixa da mensagem
+     */
+
+    const msg =
+      document.createElement(
+        "div"
+      );
+
+
+    msg.className =
+      "message";
+
+
+    /*
+     * Nome
+     */
+
+    const nameSpan =
+      document.createElement(
+        "span"
+      );
+
+
+    nameSpan.className =
+      "sender-name";
+
+
+    nameSpan.textContent =
+      senderName ||
+      "Usuário";
+
+
+    msg.appendChild(
+      nameSpan
+    );
+
+
+    /*
+     * Imagem
+     */
+
+    if (chatImageSrc) {
+
+      const img =
+        document.createElement(
+          "img"
+        );
+
+
+      img.className =
+        "chat-image";
+
+
+      img.src =
+        chatImageSrc;
+
+
+      img.alt =
+        "Imagem enviada";
+
+
+      msg.appendChild(
+        img
+      );
+
+    }
+
+
+    /*
+     * Texto
+     */
+
+    if (text) {
+
+      const textSpan =
+        document.createElement(
+          "span"
+        );
+
+
+      textSpan.textContent =
+        text;
+
+
+      msg.appendChild(
+        textSpan
+      );
+
+    }
+
+
+    /*
+     * Horário
+     */
+
+    const timeSpan =
+      document.createElement(
+        "span"
+      );
+
+
+    timeSpan.className =
+      "timestamp";
+
+
+    timeSpan.textContent =
+      timeStr ||
+      getCurrentTime();
+
+
+    msg.appendChild(
+      timeSpan
+    );
+
+
+    wrapper.appendChild(
+      msg
+    );
+
+
+    messagesEl.appendChild(
+      wrapper
+    );
+
+
+    scrollToBottom();
+
+  }
+
+
+  /*
+   * =========================================================
+   * EVENTOS
+   * =========================================================
+   */
+
+  sessionBtn.addEventListener(
+    "click",
+    toggleSession
+  );
+
+
+  connectBtn.addEventListener(
+    "click",
+    connectToPeer
+  );
+
+
+  sendBtn.addEventListener(
+    "click",
+    sendMessage
+  );
+
+
+  inputEl.addEventListener(
+    "keydown",
+    function(event) {
+
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey
+      ) {
+
+        event.preventDefault();
+
+        sendMessage();
+
+      }
+
+    }
+  );
+
+
+  remoteIdInput.addEventListener(
+    "keydown",
+    function(event) {
+
+      if (event.key === "Enter") {
+
+        connectToPeer();
+
+      }
+
+    }
+  );
+
+
+  /*
+   * =========================================================
+   * ANTES DE FECHAR A PÁGINA
+   * =========================================================
+   */
+
+  window.addEventListener(
+    "beforeunload",
+    function() {
+
+      try {
+
+        if (conn)
+          conn.close();
+
+        if (peer)
+          peer.destroy();
+
+      } catch (e) {}
+
+    }
+  );
+
+</script>
 
 </body>
 </html>
