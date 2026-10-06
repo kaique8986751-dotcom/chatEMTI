@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TimeChat - Passe seu tempo aqui!</title>
   
+  <!-- PeerJS Library para conexão WebRTC/WebSocket estável -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -124,6 +127,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 10px;
     }
 
     .status-indicator {
@@ -160,6 +164,37 @@
 
     .btn-leave:hover {
       background: #dc2626;
+    }
+
+    .connection-panel {
+      padding: 10px 15px;
+      background: #061121;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      border-bottom: 1px solid #1e40af;
+    }
+
+    .connection-panel input {
+      flex: 1;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #1e40af;
+      background: #0a192f;
+      color: #fff;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .btn-connect {
+      padding: 6px 12px;
+      background: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
     }
 
     .messages-area {
@@ -298,7 +333,8 @@
 
     .btn-action:disabled,
     .btn-img-upload:disabled,
-    .input-area input:disabled {
+    .input-area input:disabled,
+    .btn-connect:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
@@ -316,7 +352,6 @@
       <p>Passe seu tempo aqui!</p>
     </div>
 
-    <!-- Perfil do Usuário -->
     <div class="user-profile-bar">
       <div class="profile-avatar-container" onclick="triggerProfileUpload()">
         <img id="profile-preview" class="profile-avatar" src="" alt="Foto de perfil">
@@ -332,17 +367,20 @@
 
     <div class="status-bar">
       <span id="status" class="status-indicator">● Fora do chat</span>
-      <button id="session-btn" class="btn-session btn-enter" onclick="toggleSession()">Entrar</button>
+      <button id="session-btn" class="btn-session btn-enter" onclick="toggleSession()">Conectar Servidor</button>
+    </div>
+
+    <div class="connection-panel" id="connect-panel" style="display: none;">
+      <input type="text" id="remote-id-input" placeholder="Cole o código do amigo aqui...">
+      <button class="btn-connect" onclick="connectToPeer()">Conectar</button>
     </div>
 
     <div id="messages" class="messages-area">
-      <div class="message system">Clique em "Entrar" para se conectar.</div>
+      <div class="message system">Clique em "Conectar Servidor" para iniciar.</div>
     </div>
 
     <div class="input-area">
-      <label for="image-file" class="btn-img-upload" id="img-btn-label">
-        📷
-      </label>
+      <label for="image-file" class="btn-img-upload" id="img-btn-label">📷</label>
       <input type="file" id="image-file" accept="image/*" disabled onchange="sendImage(event)">
 
       <input type="text" id="message-input" placeholder="Digite sua mensagem..." disabled>
@@ -351,10 +389,11 @@
   </div>
 
   <script>
-    let socket = null;
+    let peer = null;
+    let conn = null;
     let inChat = false;
-    let userId = 'user_' + Math.random().toString(36).substr(2, 9);
-    let userAvatarSrc = "https://api.dicebear.com/7.x/bottts/svg?seed=" + userId;
+    let myPeerId = null;
+    let userAvatarSrc = "https://api.dicebear.com/7.x/bottts/svg?seed=" + Math.random().toString(36).substr(2, 5);
 
     const statusEl = document.getElementById('status');
     const sessionBtn = document.getElementById('session-btn');
@@ -365,6 +404,8 @@
     const profileInput = document.getElementById('profile-file');
     const profilePreview = document.getElementById('profile-preview');
     const usernameInput = document.getElementById('username-input');
+    const connectPanel = document.getElementById('connect-panel');
+    const remoteIdInput = document.getElementById('remote-id-input');
 
     profilePreview.src = userAvatarSrc;
 
@@ -385,75 +426,103 @@
     }
 
     function getCurrentTime() {
-      const now = new Date();
-      return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     function toggleSession() {
-      inChat = !inChat;
-
-      if (inChat) {
+      if (!inChat) {
         statusEl.textContent = '● Conectando...';
-        sessionBtn.textContent = 'Sair';
-        sessionBtn.classList.remove('btn-enter');
-        sessionBtn.classList.add('btn-leave');
+        
+        // Conecta à rede pública e estável do PeerJS
+        peer = new Peer();
 
-        // Canal público WebSocket no PieSocket (gratuito)
-        socket = new WebSocket('wss://free.piesocket.com/v3/sala_geral_timechat?api_key=VC323vS23nn32v&notify_self=1');
-
-        socket.onopen = function() {
-          statusEl.textContent = '● Online na conversa';
+        peer.on('open', function(id) {
+          inChat = true;
+          myPeerId = id;
+          statusEl.textContent = '● Seu ID: ' + id;
           statusEl.classList.add('online');
-          inputEl.disabled = false;
-          sendBtn.disabled = false;
-          imageInput.disabled = false;
-          addSystemMessage('Você entrou no chat.');
-        };
+          sessionBtn.textContent = 'Desconectar';
+          sessionBtn.classList.remove('btn-enter');
+          sessionBtn.classList.add('btn-leave');
+          connectPanel.style.display = 'flex';
+          
+          addSystemMessage('Seu código de conexão: ' + id);
+          addSystemMessage('Envie esse código para seu amigo ou cole o dele acima para conversarem.');
+        });
 
-        socket.onmessage = function(event) {
-          try {
-            const data = JSON.parse(event.data);
-            const type = (data.senderId === userId) ? 'sent' : 'received';
+        // Recebe conexão de outro usuário
+        peer.on('connection', function(connection) {
+          conn = connection;
+          setupConnection();
+        });
 
-            createMessageElement(
-              data.text,
-              type,
-              data.senderName,
-              data.avatarSrc,
-              data.chatImageSrc,
-              data.timestamp
-            );
-          } catch(e) {
-            console.error('Erro ao ler mensagem', e);
-          }
-        };
-
-        socket.onerror = function() {
-          addSystemMessage('Erro ao conectar ao servidor WebSocket.');
-        };
-
-        socket.onclose = function() {
-          if(inChat) toggleSession();
-        };
+        peer.on('error', function(err) {
+          addSystemMessage('Erro de conexão: ' + err.type);
+        });
 
       } else {
+        if (conn) conn.close();
+        if (peer) peer.destroy();
+        
+        inChat = false;
+        conn = null;
+        peer = null;
+
         statusEl.textContent = '● Fora do chat';
         statusEl.classList.remove('online');
-        sessionBtn.textContent = 'Entrar';
+        sessionBtn.textContent = 'Conectar Servidor';
         sessionBtn.classList.remove('btn-leave');
         sessionBtn.classList.add('btn-enter');
+        connectPanel.style.display = 'none';
 
-        inputEl.disabled = true;
-        sendBtn.disabled = true;
-        imageInput.disabled = true;
-
-        if (socket) {
-          socket.close();
-          socket = null;
-        }
-
-        addSystemMessage('Você saiu da conversa.');
+        disableInput();
+        addSystemMessage('Você se desconectou.');
       }
+    }
+
+    function connectToPeer() {
+      const remoteId = remoteIdInput.value.trim();
+      if (!remoteId || !peer) return;
+
+      addSystemMessage('Conectando ao usuário...');
+      conn = peer.connect(remoteId);
+      setupConnection();
+    }
+
+    function setupConnection() {
+      conn.on('open', function() {
+        statusEl.textContent = '● Conectado com ' + conn.peer;
+        enableInput();
+        addSystemMessage('Conexão estabelecida! Podem conversar.');
+      });
+
+      conn.on('data', function(data) {
+        createMessageElement(
+          data.text,
+          'received',
+          data.senderName,
+          data.avatarSrc,
+          data.chatImageSrc,
+          data.timestamp
+        );
+      });
+
+      conn.on('close', function() {
+        addSystemMessage('O outro usuário se desconectou.');
+        disableInput();
+      });
+    }
+
+    function enableInput() {
+      inputEl.disabled = false;
+      sendBtn.disabled = false;
+      imageInput.disabled = false;
+    }
+
+    function disableInput() {
+      inputEl.disabled = true;
+      sendBtn.disabled = true;
+      imageInput.disabled = true;
     }
 
     function addSystemMessage(text) {
@@ -466,12 +535,11 @@
 
     function sendMessage() {
       const text = inputEl.value.trim();
-      if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
+      if (!text || !conn) return;
 
       const username = usernameInput.value.trim() || 'Usuário';
 
       const payload = {
-        senderId: userId,
         senderName: username,
         avatarSrc: userAvatarSrc,
         text: text,
@@ -479,20 +547,20 @@
         timestamp: getCurrentTime()
       };
 
-      socket.send(JSON.stringify(payload));
+      conn.send(payload);
+      createMessageElement(text, 'sent', username, userAvatarSrc, null, payload.timestamp);
       inputEl.value = '';
     }
 
     function sendImage(event) {
       const file = event.target.files[0];
-      if (!file || !socket || socket.readyState !== WebSocket.OPEN) return;
+      if (!file || !conn) return;
 
       const reader = new FileReader();
       reader.onload = function(e) {
         const username = usernameInput.value.trim() || 'Usuário';
 
         const payload = {
-          senderId: userId,
           senderName: username,
           avatarSrc: userAvatarSrc,
           text: '',
@@ -500,10 +568,10 @@
           timestamp: getCurrentTime()
         };
 
-        socket.send(JSON.stringify(payload));
+        conn.send(payload);
+        createMessageElement('', 'sent', username, userAvatarSrc, e.target.result, payload.timestamp);
       };
       reader.readAsDataURL(file);
-
       event.target.value = '';
     }
 
@@ -552,9 +620,7 @@
     }
 
     inputEl.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        sendMessage();
-      }
+      if (e.key === 'Enter') sendMessage();
     });
   </script>
 
